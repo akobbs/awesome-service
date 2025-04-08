@@ -20,3 +20,8 @@ export type TokensResponse = {
 export type RegisterResponse = User;
 export type LoginResponse = TokensResponse;
 export type RefreshTokenResponse = TokensResponse;
+
+export enum TokenType {
+  EMAIL_VERIFICATION = 'EMAIL_VERIFICATION',
+  PASSWORD_RESET = 'PASSWORD_RESET',
+}

@@ -29,6 +29,19 @@ export class UsersService {
     return this.usersRepository.findOneBy({ id });
   }
 
+  public async changeEmailVerificationStatus(
+    user: User,
+    isEmailVerified: boolean,
+  ) {
+    return this.usersRepository.update(user.id, { isEmailVerified });
+  }
+
+  public async changePassword(user: User, newPassword: string) {
+    return this.usersRepository.update(user.id, {
+      password: newPassword,
+    });
+  }
+
   /**
    * @throws {ConflictException} - Throws when the email already exists
    * @throws {InternalServerErrorException} - Throws for unhandled errors

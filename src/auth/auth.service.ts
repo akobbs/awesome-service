@@ -6,6 +6,11 @@ import { TokenService } from './token.service';
 import { PasswordService } from './password.service';
 import { RefreshTokenDto } from './dto/refreshToken.dto';
 import { User } from '../users/user.entity';
+import { MailService } from '../mail/mail.service';
+import { ResendVerificationEmailDto } from './dto/resendVerificationEmail.dto';
+import { VerifyEmailDto } from './dto/verifyEmail.dto';
+import { ForgotPasswordDto } from './dto/forgotPassword.dto';
+import { ResetPasswordDto } from './dto/resetPassword.dto';
 
 @Injectable()
 export class AuthService {
@@ -13,6 +18,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly tokenService: TokenService,
     private readonly passwordService: PasswordService,
+    private readonly mailService: MailService,
   ) {}
 
   public async login(loginDto: LoginDto) {
@@ -20,7 +26,7 @@ export class AuthService {
 
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      return this.throwInvalidCredentialsException();
+      return AuthService.throwInvalidCredentialsException();
     }
 
     const isCorrectPassword = await this.passwordService.verifyPassword(
@@ -29,7 +35,7 @@ export class AuthService {
     );
 
     if (!isCorrectPassword) {
-      return this.throwInvalidCredentialsException();
+      return AuthService.throwInvalidCredentialsException();
     }
 
     return await this.generateTokens(user);
@@ -45,7 +51,51 @@ export class AuthService {
       password: hashedPassword,
     });
 
+    const token = await this.tokenService.createEmailVerificationToken(newUser);
+    await this.mailService.sendEmailConfirmation(newUser, token);
+
     return newUser;
+  }
+
+  public async verifyEmail(verifyEmailDto: VerifyEmailDto) {
+    const token = await this.tokenService.findEmailVerificationToken(
+      verifyEmailDto.token,
+    );
+
+    if (!token) {
+      return AuthService.throwEmailNotVerifiedException();
+    }
+
+    if (this.tokenService.isTokenExpired(token)) {
+      return AuthService.throwEmailNotVerifiedException();
+    }
+
+    const { user } = token;
+
+    if (!user.isEmailVerified) {
+      await this.usersService.changeEmailVerificationStatus(user, true);
+    }
+
+    await this.tokenService.deleteToken(token);
+
+    return { message: 'Email verified successfully' };
+  }
+
+  public async resendVerificationEmail(
+    resendVerificationEmailDto: ResendVerificationEmailDto,
+  ) {
+    const user = await this.usersService.findByEmail(
+      resendVerificationEmailDto.email,
+    );
+
+    if (!user) {
+      return { message: 'Email sent successfully' };
+    }
+
+    const token = await this.tokenService.createEmailVerificationToken(user);
+    await this.mailService.sendEmailConfirmation(user, token);
+
+    return { message: 'Email sent successfully' };
   }
 
   public async refreshToken(refreshTokenDto: RefreshTokenDto) {
@@ -67,6 +117,43 @@ export class AuthService {
     return await this.generateTokens(user);
   }
 
+  public async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    const user = await this.usersService.findByEmail(forgotPasswordDto.email);
+    if (!user) {
+      return { message: 'Password reset email sent' };
+    }
+
+    const token = await this.tokenService.createPasswordResetToken(user);
+    await this.mailService.sendPasswordReset(user, token);
+
+    return { message: 'Password reset email sent' };
+  }
+
+  public async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    const token = await this.tokenService.findPasswordResetToken(
+      resetPasswordDto.token,
+    );
+
+    if (!token) {
+      throw new UnauthorizedException('Invalid or expired reset token');
+    }
+
+    if (this.tokenService.isTokenExpired(token)) {
+      throw new UnauthorizedException('Invalid or expired reset token');
+    }
+
+    const user = token.user;
+
+    const hashedPassword = await this.passwordService.hashPassword(
+      resetPasswordDto.newPassword,
+    );
+
+    await this.usersService.changePassword(user, hashedPassword);
+    await this.tokenService.deleteToken(token);
+
+    return { message: 'Password updated successfully.' };
+  }
+
   private async generateTokens(user: User) {
     const [newAccessToken, newRefreshToken] = await Promise.all([
       this.tokenService.createAccessToken(user),
@@ -79,7 +166,11 @@ export class AuthService {
     };
   }
 
-  private throwInvalidCredentialsException(): never {
+  private static throwInvalidCredentialsException(): never {
     throw new UnauthorizedException('Invalid credentials');
+  }
+
+  private static throwEmailNotVerifiedException(): never {
+    throw new UnauthorizedException('Email not verified');
   }
 }

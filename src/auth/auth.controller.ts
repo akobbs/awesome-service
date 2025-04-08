@@ -20,6 +20,10 @@ import { SignUpDto } from './dto/signUp.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtGuard } from './jwt.guard';
 import { RefreshTokenDto } from './dto/refreshToken.dto';
+import { ResendVerificationEmailDto } from './dto/resendVerificationEmail.dto';
+import { VerifyEmailDto } from './dto/verifyEmail.dto';
+import { ForgotPasswordDto } from './dto/forgotPassword.dto';
+import { ResetPasswordDto } from './dto/resetPassword.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -58,6 +62,7 @@ export class AuthController {
   }
 
   @Post('refreshToken')
+  @HttpCode(HttpStatus.OK)
   async refreshToken(
     @Body() refreshTokenDto: RefreshTokenDto,
   ): Promise<RefreshTokenResponse> {
@@ -72,19 +77,39 @@ export class AuthController {
     return this.authService.refreshToken(refreshTokenDto);
   }
 
+  @Post('resendVerificationEmail')
+  @HttpCode(HttpStatus.OK)
+  async resendVerificationEmail(
+    @Body() resendVerificationEmailDto: ResendVerificationEmailDto,
+  ) {
+    // 200 OK: Generic success response.
+    // 400 Bad Request: If the provided email format is invalid.
+    // 429 Too Many Requests: If the user is requesting verification emails too frequently (to prevent spamming).
+    // 500 Internal Server Error: For unexpected server errors.
+    return this.authService.resendVerificationEmail(resendVerificationEmailDto);
+  }
+
+  @Post('verifyEmail')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
+    return this.authService.verifyEmail(verifyEmailDto);
+  }
+
   @Post('forgotPassword')
-  async forgotPassword() {
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     // Success - 200 OK
     // { "message": "Password reset email sent." }
-    throw new Error('Not implemented');
+    return this.authService.forgotPassword(forgotPasswordDto);
   }
 
   @Post('resetPassword')
-  async resetPassword() {
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     // Success - 200 OK
     // { "message": "Password successfully reset." }
     //
     // Invalid or Expired Reset Token - 401 Unauthorized
-    throw new Error('Not implemented');
+    return this.authService.resetPassword(resetPasswordDto);
   }
 }

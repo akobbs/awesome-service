@@ -3,9 +3,11 @@ import { JwtService } from '@nestjs/jwt';
 import { User } from '../users/user.entity';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { RefreshToken } from './refreshToken.entity';
+import { RefreshToken } from './entities/refreshToken.entity';
 import { Repository } from 'typeorm';
-import { AccessTokenPayload, RefreshTokenPayload } from './types';
+import { AccessTokenPayload, RefreshTokenPayload, TokenType } from './types';
+import { v4 as uuidv4 } from 'uuid';
+import { Token } from './entities/token.entity';
 
 @Injectable()
 export class TokenService {
@@ -14,7 +16,67 @@ export class TokenService {
     private readonly configService: ConfigService,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>,
+    @InjectRepository(Token)
+    private readonly tokenRepository: Repository<Token>,
   ) {}
+
+  public async createPasswordResetToken(user: User) {
+    const token = uuidv4();
+
+    await this.tokenRepository.save({
+      token,
+      type: TokenType.PASSWORD_RESET,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      user,
+    });
+
+    return token;
+  }
+
+  public async createEmailVerificationToken(user: User) {
+    const token = uuidv4();
+
+    await this.tokenRepository.save({
+      token,
+      type: TokenType.EMAIL_VERIFICATION,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      user,
+    });
+
+    return token;
+  }
+
+  public isTokenExpired(token: Token): boolean {
+    return token.expiresAt.getTime() < Date.now();
+  }
+
+  public async findEmailVerificationToken(token: string) {
+    const tokenEntity = await this.tokenRepository.findOne({
+      where: {
+        token,
+        type: TokenType.EMAIL_VERIFICATION,
+      },
+      relations: ['user'],
+    });
+
+    return tokenEntity;
+  }
+
+  public async findPasswordResetToken(token: string) {
+    const tokenEntity = await this.tokenRepository.findOne({
+      where: {
+        token,
+        type: TokenType.PASSWORD_RESET,
+      },
+      relations: ['user'],
+    });
+
+    return tokenEntity;
+  }
+
+  public async deleteToken(token: Token) {
+    await this.tokenRepository.remove(token);
+  }
 
   public async createAccessToken(user: User) {
     const accessToken = await this.jwtService.signAsync(
