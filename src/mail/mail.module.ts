@@ -10,27 +10,35 @@ import { join } from 'path';
     MailerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        transport: {
-          service: configService.get('EMAIL_SERVICE'),
-          host: 'smtp.example.com',
-          secure: false,
-          auth: {
-            user: configService.get('EMAIL_USER'),
-            pass: configService.get('EMAIL_PASSWORD'),
+      useFactory: async (configService: ConfigService) => {
+        const isTest = process.env.NODE_ENV === 'test';
+
+        return {
+          transport: isTest
+            ? {
+                jsonTransport: true,
+              }
+            : {
+                service: configService.get('EMAIL_SERVICE'),
+                host: 'smtp.example.com',
+                secure: false,
+                auth: {
+                  user: configService.get('EMAIL_USER'),
+                  pass: configService.get('EMAIL_PASSWORD'),
+                },
+              },
+          // defaults: {
+          //   from: '"No Reply" <noreply@example.com>',
+          // },
+          template: {
+            dir: join(__dirname, 'templates'),
+            adapter: new HandlebarsAdapter(), // or new PugAdapter() or new EjsAdapter()
+            options: {
+              strict: true,
+            },
           },
-        },
-        // defaults: {
-        //   from: '"No Reply" <noreply@example.com>',
-        // },
-        template: {
-          dir: join(__dirname, 'templates'),
-          adapter: new HandlebarsAdapter(), // or new PugAdapter() or new EjsAdapter()
-          options: {
-            strict: true,
-          },
-        },
-      }),
+        };
+      },
     }),
   ],
   providers: [MailService],

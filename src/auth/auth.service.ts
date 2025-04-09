@@ -11,6 +11,13 @@ import { ResendVerificationEmailDto } from './dto/resendVerificationEmail.dto';
 import { VerifyEmailDto } from './dto/verifyEmail.dto';
 import { ForgotPasswordDto } from './dto/forgotPassword.dto';
 import { ResetPasswordDto } from './dto/resetPassword.dto';
+import { Result } from '../common/types';
+import {
+  EmailAlreadyExistsError,
+  InvalidCredentialsError,
+  UnknownError,
+} from './auth.errors';
+import { err, ok } from '../common/utils';
 
 @Injectable()
 export class AuthService {
@@ -21,12 +28,19 @@ export class AuthService {
     private readonly mailService: MailService,
   ) {}
 
-  public async login(loginDto: LoginDto) {
+  public async login(
+    loginDto: LoginDto,
+  ): Promise<
+    Result<
+      { accessToken: string; refreshToken: string },
+      InvalidCredentialsError
+    >
+  > {
     const { email, password } = loginDto;
 
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      return AuthService.throwInvalidCredentialsException();
+      return err(new InvalidCredentialsError());
     }
 
     const isCorrectPassword = await this.passwordService.verifyPassword(
@@ -35,26 +49,35 @@ export class AuthService {
     );
 
     if (!isCorrectPassword) {
-      return AuthService.throwInvalidCredentialsException();
+      return err(new InvalidCredentialsError());
+      // return AuthService.throwInvalidCredentialsException();
     }
 
-    return await this.generateTokens(user);
+    const tokens = await this.generateTokens(user);
+    return ok(tokens);
   }
 
-  public async signUp(signUpDto: SignUpDto): Promise<User> {
+  public async signUp(
+    signUpDto: SignUpDto,
+  ): Promise<Result<User, EmailAlreadyExistsError | UnknownError>> {
     const hashedPassword = await this.passwordService.hashPassword(
       signUpDto.password,
     );
 
-    const newUser = await this.usersService.create({
+    const createUserResult = await this.usersService.create({
       ...signUpDto,
       password: hashedPassword,
     });
 
+    if (!createUserResult.ok) {
+      return err(createUserResult.error);
+    }
+
+    const newUser = createUserResult.value;
     const token = await this.tokenService.createEmailVerificationToken(newUser);
     await this.mailService.sendEmailConfirmation(newUser, token);
 
-    return newUser;
+    return ok(newUser);
   }
 
   public async verifyEmail(verifyEmailDto: VerifyEmailDto) {

@@ -1,11 +1,14 @@
 import {
   Body,
+  ConflictException,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
+  InternalServerErrorException,
   Post,
   Req,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
@@ -24,11 +27,18 @@ import { ResendVerificationEmailDto } from './dto/resendVerificationEmail.dto';
 import { VerifyEmailDto } from './dto/verifyEmail.dto';
 import { ForgotPasswordDto } from './dto/forgotPassword.dto';
 import { ResetPasswordDto } from './dto/resetPassword.dto';
+import { assertNever } from '../common/utils';
+import {
+  EmailAlreadyExistsError,
+  InvalidCredentialsError,
+  UnknownError,
+} from './auth.errors';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @HttpCode(HttpStatus.OK)
   @Post('login')
   async login(@Body() loginData: LoginDto): Promise<LoginResponse> {
     // Success - 200 OK
@@ -39,7 +49,18 @@ export class AuthController {
     //
     // Account Not Verified - 403 Forbidden (if you have an email verification step)
     // { "error": "Account not verified." }
-    return this.authService.login(loginData);
+    const loginResult = await this.authService.login(loginData);
+
+    if (loginResult.ok) {
+      return loginResult.value;
+    }
+
+    const { error } = loginResult;
+    if (error instanceof InvalidCredentialsError) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    assertNever(error);
   }
 
   @HttpCode(HttpStatus.CREATED)
@@ -52,7 +73,21 @@ export class AuthController {
     //
     // Validation Error - 400 Bad Request
     // { "error": "Password must be at least 8 characters long." }
-    return this.authService.signUp(registerData);
+    const signUpResult = await this.authService.signUp(registerData);
+    if (signUpResult.ok) {
+      return signUpResult.value;
+    }
+
+    const { error } = signUpResult;
+    if (error instanceof EmailAlreadyExistsError) {
+      throw new ConflictException('Email already exists');
+    }
+
+    if (error instanceof UnknownError) {
+      throw new InternalServerErrorException();
+    }
+
+    assertNever(error);
   }
 
   @UseGuards(JwtGuard)

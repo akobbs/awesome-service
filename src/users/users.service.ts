@@ -1,8 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/createUser.dto';
 import { UpdateUserDto } from './dto/updateUser.dto';
 import { DeleteUserDto } from './dto/deleteUser.dto';
@@ -10,6 +6,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './user.entity';
 import { Repository } from 'typeorm';
 import { PostgresError } from '../database/postgresError';
+import { EmailAlreadyExistsError, UnknownError } from '../auth/auth.errors';
+import { Result } from '../common/types';
+import { err, ok } from '../common/utils';
 
 @Injectable()
 export class UsersService {
@@ -46,17 +45,19 @@ export class UsersService {
    * @throws {ConflictException} - Throws when the email already exists
    * @throws {InternalServerErrorException} - Throws for unhandled errors
    */
-  public async create(createUserDto: CreateUserDto): Promise<User> {
+  public async create(
+    createUserDto: CreateUserDto,
+  ): Promise<Result<User, EmailAlreadyExistsError | UnknownError>> {
     try {
       const userToCreate = this.usersRepository.create(createUserDto);
       const newUser = await this.usersRepository.save(userToCreate);
-      return newUser;
+      return ok(newUser);
     } catch (error) {
       if (error.code === PostgresError.UNIQUE_VIOLATION) {
-        throw new ConflictException('Email already exists');
+        return err(new EmailAlreadyExistsError());
       }
 
-      throw new InternalServerErrorException();
+      return err(new UnknownError());
     }
   }
 
