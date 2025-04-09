@@ -27,12 +27,7 @@ import { ResendVerificationEmailDto } from './dto/resendVerificationEmail.dto';
 import { VerifyEmailDto } from './dto/verifyEmail.dto';
 import { ForgotPasswordDto } from './dto/forgotPassword.dto';
 import { ResetPasswordDto } from './dto/resetPassword.dto';
-import { assertNever } from '../common/utils';
-import {
-  EmailAlreadyExistsError,
-  InvalidCredentialsError,
-  UnknownError,
-} from './auth.errors';
+import { unwrapResultOrThrow } from '../common/utils';
 
 @Controller('auth')
 export class AuthController {
@@ -49,18 +44,11 @@ export class AuthController {
     //
     // Account Not Verified - 403 Forbidden (if you have an email verification step)
     // { "error": "Account not verified." }
-    const loginResult = await this.authService.login(loginData);
 
-    if (loginResult.ok) {
-      return loginResult.value;
-    }
-
-    const { error } = loginResult;
-    if (error instanceof InvalidCredentialsError) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    assertNever(error);
+    return unwrapResultOrThrow(await this.authService.login(loginData), {
+      InvalidCredentialsError: () =>
+        new UnauthorizedException('Invalid credentials'),
+    });
   }
 
   @HttpCode(HttpStatus.CREATED)
@@ -73,21 +61,12 @@ export class AuthController {
     //
     // Validation Error - 400 Bad Request
     // { "error": "Password must be at least 8 characters long." }
-    const signUpResult = await this.authService.signUp(registerData);
-    if (signUpResult.ok) {
-      return signUpResult.value;
-    }
 
-    const { error } = signUpResult;
-    if (error instanceof EmailAlreadyExistsError) {
-      throw new ConflictException('Email already exists');
-    }
-
-    if (error instanceof UnknownError) {
-      throw new InternalServerErrorException();
-    }
-
-    assertNever(error);
+    return unwrapResultOrThrow(await this.authService.signUp(registerData), {
+      EmailAlreadyExistsError: () =>
+        new ConflictException('Email already exists'),
+      UnknownError: () => new InternalServerErrorException(),
+    });
   }
 
   @UseGuards(JwtGuard)

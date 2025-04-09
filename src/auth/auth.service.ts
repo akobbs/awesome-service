@@ -12,12 +12,12 @@ import { VerifyEmailDto } from './dto/verifyEmail.dto';
 import { ForgotPasswordDto } from './dto/forgotPassword.dto';
 import { ResetPasswordDto } from './dto/resetPassword.dto';
 import { Result } from '../common/types';
+import { err, ok } from '../common/utils';
 import {
   EmailAlreadyExistsError,
   InvalidCredentialsError,
   UnknownError,
-} from './auth.errors';
-import { err, ok } from '../common/utils';
+} from '../common/errors';
 
 @Injectable()
 export class AuthService {

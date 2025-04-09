@@ -6,7 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './user.entity';
 import { Repository } from 'typeorm';
 import { PostgresError } from '../database/postgresError';
-import { EmailAlreadyExistsError, UnknownError } from '../auth/auth.errors';
+import { EmailAlreadyExistsError, UnknownError } from '../common/errors';
 import { Result } from '../common/types';
 import { err, ok } from '../common/utils';
 

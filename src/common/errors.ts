@@ -3,17 +3,17 @@ export abstract class BaseError {
 }
 
 export class InvalidCredentialsError extends BaseError {
-  readonly type = 'InvalidCredentialsError' as const;
+  readonly type = 'InvalidCredentialsError';
 }
 
 export class EmailNotVerifiedError extends BaseError {
-  readonly type = 'EmailNotVerifiedError' as const;
+  readonly type = 'EmailNotVerifiedError';
 }
 
 export class EmailAlreadyExistsError extends BaseError {
-  readonly type = 'EmailAlreadyExistsError' as const;
+  readonly type = 'EmailAlreadyExistsError';
 }
 
 export class UnknownError extends BaseError {
-  readonly type = 'UnknownError' as const;
+  readonly type = 'UnknownError';
 }
