@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   ConflictException,
   Controller,
@@ -15,6 +16,7 @@ import { PaginateSurveysQueryDto } from './dto/paginate-surveys.dto';
 import { SurveyService } from './survey.service';
 import { assertFound, unwrapResultOrThrow } from '../common/utils';
 import { UpdateSurveyDto } from './dto/update-survey.dto';
+import { ChangeSurveyStatusDto } from './dto/change-survey-status.dto';
 
 @Controller('surveys')
 export class SurveyController {
@@ -49,6 +51,20 @@ export class SurveyController {
           'Survey has been updated by someone else. Please reload and try again.',
         ),
       UnknownError: () => new InternalServerErrorException(),
+    });
+  }
+
+  @Patch(':uuid/status')
+  async changeStatus(
+    @Param('uuid') uuid: string,
+    @Body() dto: ChangeSurveyStatusDto,
+  ) {
+    const result = await this.surveyService.changeStatus(uuid, dto.status);
+
+    return unwrapResultOrThrow(result, {
+      SurveyNotFoundError: () => new NotFoundException(),
+      InvalidStatusTransitionError: () =>
+        new BadRequestException('Invalid status transition'),
     });
   }
 }

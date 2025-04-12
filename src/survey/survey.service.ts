@@ -7,14 +7,26 @@ import {
   SURVEY_REPOSITORY,
 } from './survey.constants';
 import { ISurveyQuestionRepository } from './repositories/survey-question.repository';
-import { Survey } from './entities/survey.entity';
+import { Survey, SurveyStatus } from './entities/survey.entity';
 import { UpdateSurveyDto } from './dto/update-survey.dto';
 import {
+  InvalidStatusTransitionError,
   SurveyNotFoundError,
   SurveyVersionMismatchError,
 } from './survey.errors';
 import { Result } from '../common/types';
 import { UnknownError } from '../common/errors';
+import { err, ok } from '../common/utils';
+
+const validTransitions: Record<SurveyStatus, SurveyStatus[]> = {
+  draft: ['active', 'archived'],
+  active: ['archived'],
+  archived: [],
+};
+
+function canTransition(from: SurveyStatus, to: SurveyStatus): boolean {
+  return validTransitions[from]?.includes(to);
+}
 
 @Injectable()
 export class SurveyService {
@@ -72,5 +84,29 @@ export class SurveyService {
         questions: dto.questions?.map((q) => this.questionRepo.create(q)),
       },
     });
+  }
+
+  async changeStatus(
+    uuid: string,
+    newStatus: SurveyStatus,
+  ): Promise<
+    Result<Survey, SurveyNotFoundError | InvalidStatusTransitionError>
+  > {
+    const survey = await this.surveyRepo.findByUuid(uuid);
+    if (!survey) {
+      return err(new SurveyNotFoundError());
+    }
+
+    if (!canTransition(survey.status, newStatus)) {
+      return err(new InvalidStatusTransitionError());
+    }
+
+    // Intentionally no version check here — status changes are simple and low-risk
+    // Consider if we need to add optimistic locking for status changes in the future
+    // or something more complex
+    survey.status = newStatus;
+
+    await this.surveyRepo.save(survey);
+    return ok(survey);
   }
 }

@@ -1,7 +1,7 @@
 import { Survey, SurveyStatus } from '../entities/survey.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Injectable } from '@nestjs/common';
-import { OptimisticLockVersionMismatchError, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Result } from '../../common/types';
 import {
   SurveyNotFoundError,

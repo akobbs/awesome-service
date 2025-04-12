@@ -46,10 +46,6 @@ export class CreateSurveyDto {
   description?: string;
 
   @IsOptional()
-  @IsEnum(['draft', 'active', 'archived'])
-  status?: 'draft' | 'active' | 'archived';
-
-  @IsOptional()
   @IsDateString()
   expiresAt?: string;
 

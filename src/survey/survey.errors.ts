@@ -7,3 +7,7 @@ export class SurveyNotFoundError extends BaseError {
 export class SurveyVersionMismatchError extends BaseError {
   readonly type = 'SurveyVersionMismatchError';
 }
+
+export class InvalidStatusTransitionError extends BaseError {
+  readonly type = 'InvalidStatusTransitionError' as const;
+}

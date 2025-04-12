@@ -9,7 +9,6 @@ const createSurveyDto = (
 ): CreateSurveyDto => ({
   title: 'Customer Satisfaction',
   description: 'Quick survey to rate our service',
-  status: 'active',
   expiresAt: new Date(Date.now() + 86400000).toISOString(), // +1 day
   questions: [
     {
@@ -164,6 +163,88 @@ describe('SurveyController (e2e)', () => {
       const res = await request(app.getHttpServer())
         .patch(`/surveys/${randomUUID()}`)
         .send({ title: 'Not Found', version: 1 })
+        .expect(404);
+
+      expect(res.body.message).toMatch(/not found/i);
+    });
+  });
+
+  describe('PATCH /surveys/:uuid/status', () => {
+    it('should update the survey status to active successfully', async () => {
+      const createRes = await request(app.getHttpServer())
+        .post('/surveys')
+        .send(createSurveyDto())
+        .expect(201);
+
+      const { uuid } = createRes.body;
+
+      const patchRes = await request(app.getHttpServer())
+        .patch(`/surveys/${uuid}/status`)
+        .send({ status: 'active' })
+        .expect(200);
+
+      expect(patchRes.body.status).toBe('active');
+    });
+
+    it('should update the survey status to archived successfully', async () => {
+      const createRes = await request(app.getHttpServer())
+        .post('/surveys')
+        .send(createSurveyDto())
+        .expect(201);
+
+      const { uuid } = createRes.body;
+
+      const updateToArchivedRes = await request(app.getHttpServer())
+        .patch(`/surveys/${uuid}/status`)
+        .send({ status: 'archived' })
+        .expect(200);
+
+      expect(updateToArchivedRes.body.status).toBe('archived');
+    });
+
+    it('should return 400 if status is invalid', async () => {
+      const createRes = await request(app.getHttpServer())
+        .post('/surveys')
+        .send(createSurveyDto())
+        .expect(201);
+
+      const { uuid } = createRes.body;
+
+      const res = await request(app.getHttpServer())
+        .patch(`/surveys/${uuid}/status`)
+        .send({ status: 'invalid_status' })
+        .expect(400);
+
+      expect(res.body.message).toContainEqual(expect.stringMatching(/status/));
+    });
+
+    it('should return 400 if transitioning to an invalid state', async () => {
+      const createRes = await request(app.getHttpServer())
+        .post('/surveys')
+        .send(createSurveyDto())
+        .expect(201);
+
+      const { uuid } = createRes.body;
+
+      await request(app.getHttpServer())
+        .patch(`/surveys/${uuid}/status`)
+        .send({ status: 'active' })
+        .expect(200);
+
+      const updateToDraftRes = await request(app.getHttpServer())
+        .patch(`/surveys/${uuid}/status`)
+        .send({ status: 'draft' })
+        .expect(400);
+
+      expect(updateToDraftRes.body.message).toMatch(
+        /invalid status transition/i,
+      );
+    });
+
+    it('should return 404 if survey does not exist', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/surveys/${randomUUID()}/status`)
+        .send({ status: 'active' })
         .expect(404);
 
       expect(res.body.message).toMatch(/not found/i);
