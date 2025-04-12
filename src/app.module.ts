@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { DatabaseModule } from './database/database.module';
 import { MailModule } from './mail/mail.module';
+import { SurveyModule } from './survey/survey.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { MailModule } from './mail/mail.module';
       }),
     }),
     MailModule,
+    SurveyModule,
   ],
 })
 export class AppModule {}

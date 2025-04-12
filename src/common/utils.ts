@@ -1,4 +1,4 @@
-import { HttpException } from '@nestjs/common';
+import { HttpException, NotFoundException } from '@nestjs/common';
 import { BaseError } from './errors';
 import { ErrorTypeMap, Result } from './types';
 
@@ -21,4 +21,15 @@ export function unwrapResultOrThrow<T, E extends BaseError>(
   const handler = handlers[type] as () => HttpException;
 
   throw handler();
+}
+
+export function assertFound<T>(
+  value: T | undefined | null,
+  msg = 'Not found',
+): T {
+  if (!value) {
+    throw new NotFoundException(msg);
+  }
+
+  return value;
 }
