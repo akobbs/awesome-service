@@ -9,16 +9,16 @@ export interface RequestWithUser extends Request {
 
 export type Result<T, E> = Success<T> | Failure<E>;
 
-type Success<T> = {
+export type Success<T> = {
   ok: true;
   value: T;
 };
 
-type Failure<E> = {
+export type Failure<E> = {
   ok: false;
   error: E;
 };
 
 export type ErrorTypeMap<E extends BaseError> = {
-  [K in E as K['type']]: () => HttpException;
+  [K in E as K['type']]: (e: E) => HttpException;
 };

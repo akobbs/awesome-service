@@ -17,6 +17,8 @@ import { SurveyService } from './survey.service';
 import { assertFound, unwrapResultOrThrow } from '../common/utils';
 import { UpdateSurveyDto } from './dto/update-survey.dto';
 import { ChangeSurveyStatusDto } from './dto/change-survey-status.dto';
+import { CursorPaginateSurveysDto } from './dto/cursor-pagination-query.dto';
+import { InvalidRelayPaginationInputError } from '../common/pagination/relay-pagination';
 
 @Controller('surveys')
 export class SurveyController {
@@ -31,6 +33,18 @@ export class SurveyController {
   async findAll(@Query() query: PaginateSurveysQueryDto) {
     debugger;
     return this.surveyService.getPaginatedSurveys(query);
+  }
+
+  @Get('cursor')
+  async getCursorPaginated(@Query() query: CursorPaginateSurveysDto) {
+    return unwrapResultOrThrow(
+      await this.surveyService.getSurveysWithCursorPagination(query),
+      {
+        InvalidRelayPaginationInputError: (
+          e: InvalidRelayPaginationInputError,
+        ) => new BadRequestException(e.message),
+      },
+    );
   }
 
   @Get(':uuid')

@@ -17,6 +17,19 @@ import {
 import { Result } from '../common/types';
 import { UnknownError } from '../common/errors';
 import { err, ok } from '../common/utils';
+import { CursorPaginateSurveysDto } from './dto/cursor-pagination-query.dto';
+import {
+  applyCursorPagination,
+  decodeCursor,
+  getDirection,
+  getLimit,
+  InvalidRelayPaginationInputError,
+  validateRelayPagination,
+} from '../common/pagination/relay-pagination';
+import {
+  CursorDirection,
+  RelayEdgesPaginatedResult,
+} from '../common/pagination/types';
 
 const validTransitions: Record<SurveyStatus, SurveyStatus[]> = {
   draft: ['active', 'archived'],
@@ -108,5 +121,42 @@ export class SurveyService {
 
     await this.surveyRepo.save(survey);
     return ok(survey);
+  }
+
+  async getSurveysWithCursorPagination(
+    dto: CursorPaginateSurveysDto,
+  ): Promise<
+    Result<RelayEdgesPaginatedResult<Survey>, InvalidRelayPaginationInputError>
+  > {
+    const validationResult = validateRelayPagination(dto);
+    if (!validationResult.ok) {
+      return validationResult;
+    }
+
+    const limit = getLimit(dto);
+    const direction = getDirection(dto);
+    const isBackward = direction === 'backward';
+
+    const base = { limit, filter: dto.filter };
+
+    const cursorDirection: CursorDirection =
+      direction === 'forward'
+        ? {
+            direction: 'forward',
+            after: dto.after ? decodeCursor(dto.after) : undefined,
+          }
+        : {
+            direction: 'backward',
+            before: dto.before ? decodeCursor(dto.before) : undefined,
+          };
+
+    const params = {
+      ...base,
+      ...cursorDirection,
+    };
+
+    const result = await this.surveyRepo.findCursorPaginated(params);
+
+    return ok(applyCursorPagination(result, limit, isBackward));
   }
 }

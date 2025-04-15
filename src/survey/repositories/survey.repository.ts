@@ -10,6 +10,7 @@ import {
 import { err, ok } from '../../common/utils';
 import { SurveyQuestion } from '../entities/survey-question.entity';
 import { UnknownError } from '../../common/errors';
+import { CursorDirection } from '../../common/pagination/types';
 
 export interface ISurveyRepository {
   create(data: Partial<Survey>): Survey;
@@ -35,6 +36,13 @@ export interface ISurveyRepository {
     limit: number;
     status?: SurveyStatus;
   }): Promise<{ total: number; items: Survey[] }>;
+
+  findCursorPaginated(
+    params: {
+      limit: number;
+      filter?: { status?: SurveyStatus };
+    } & CursorDirection,
+  ): Promise<Survey[]>;
 }
 
 @Injectable()
@@ -114,5 +122,49 @@ export class TypeOrmSurveyRepository implements ISurveyRepository {
     });
 
     return { items, total };
+  }
+
+  async findCursorPaginated(
+    params: {
+      limit: number;
+      filter?: { status?: SurveyStatus };
+    } & CursorDirection,
+  ): Promise<Survey[]> {
+    const { limit, filter, direction, after, before } = params;
+
+    const qb = this.repo
+      .createQueryBuilder('survey')
+      .orderBy('survey.id', direction === 'backward' ? 'ASC' : 'DESC');
+
+    if (filter?.status) {
+      qb.andWhere('survey.status = :status', { status: filter.status });
+    }
+
+    // 👇 Look up ID only if cursor is provided
+    if (direction === 'forward' && after) {
+      const survey = await this.repo.findOne({
+        where: { uuid: after },
+        select: ['id'],
+      });
+
+      if (survey) {
+        qb.andWhere('survey.id < :afterId', { afterId: survey.id });
+      }
+    }
+
+    if (direction === 'backward' && before) {
+      const survey = await this.repo.findOne({
+        where: { uuid: before },
+        select: ['id'],
+      });
+
+      if (survey) {
+        qb.andWhere('survey.id > :beforeId', { beforeId: survey.id });
+      }
+    }
+
+    qb.take(limit + 1);
+
+    return qb.getMany();
   }
 }

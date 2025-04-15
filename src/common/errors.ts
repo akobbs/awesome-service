@@ -1,5 +1,10 @@
 export abstract class BaseError {
   abstract readonly type: string;
+  readonly message?: string;
+
+  constructor(message?: string) {
+    this.message = message;
+  }
 }
 
 export class InvalidCredentialsError extends BaseError {

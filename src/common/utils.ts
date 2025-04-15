@@ -18,9 +18,9 @@ export function unwrapResultOrThrow<T, E extends BaseError>(
   }
 
   const type = result.error.type as keyof ErrorTypeMap<E>;
-  const handler = handlers[type] as () => HttpException;
+  const handler = handlers[type] as (e: E) => HttpException;
 
-  throw handler();
+  throw handler(result.error);
 }
 
 export function assertFound<T>(
